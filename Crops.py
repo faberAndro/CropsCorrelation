@@ -30,42 +30,38 @@ def show_2_superposed_shapes(crop_1, crop_2, color_1=None, color_2=None):
     plt.show()
 
 
-def lancia_barre(m, w, labels, c='mediumaquamarine', etichette=False): # m è la matrix di dati n x n (numpy array). w è lo spessore di una barra (0..1), c: colore
+def throw_3Dbarplot(m, w, labels, c='mediumaquamarine', my_labels=False):   # m is the data  matrix n x n (numpy array). w is bar thickness (0..1), c: color
 
     fig = plt.figure()
     ax1 = fig.add_subplot(111, projection='3d')
-    # costruisce gli assi x, y e assegna il piano z=0
+    # build axes x, y. Assign plane z=0
     n = m.shape[0]
     _x = np.arange(n)+w/2
     _y = np.arange(n)+w/2
     _xx, _yy = np.meshgrid(_x, _y)
     x_centres, y_centres = _xx.ravel(), _yy.ravel()
     bottom = np.zeros_like(x_centres)
-    # assegna le etichette
-    # ax1.set_xlabel('crops - [1]')
+    # assgin labels
     ax1.set_xticks(_x+w/2, )
     ax1.set_xticklabels(labels, rotation=90)
-    # ax1.set_ylabel('crops - [2]')
     ax1.set_yticks(_y+w/2)
     ax1.set_yticklabels(labels, rotation=90)
     ax1.set_zlim3d(0, 1)
     ax1.set_zlabel('correlation')
     ax1.set_title('crops correlation over years 1961-2018')
-    # assegna lo spessore
+    # assign thickness
     width = depth = w
-    # assegna i valori
+    # assign values
     z_height = np.round(m.ravel(), 2)
-    # print(type(z_height))
     ax1.bar3d(x_centres, y_centres, bottom, width, depth, z_height, shade=True, color=c)
-    if etichette:
+    if my_labels:
         for i, z in enumerate(z_height):
             ax1.text(x_centres[i]+w/2*0.5, y_centres[i]+w/2*0.5, z+0.07, str(np.round(z, 2)), zdir=None, zorder=1)
-    # print(max(z_height))
     plt.show()
 
 
-def load_from_European_type_file(y):
-    data = pd.read_csv(r'C:\04. IT Projects\PROJECTS\0. AI Projects\AI MISCELLANEA\Trends_Meteo_Crops\CROPS_vs_METEO_Italy\FAOSTAT_data_5-19-2020.csv', header = 0)
+def load_from_single_country_FAO_file(y):
+    data = pd.read_csv("FAOSTAT_data_5-19-2020.csv", header = 0)
     data1 = data[['Element', 'Item', 'Year', 'Unit', 'Value', 'Flag Description']]  # extracts only the useful columns 
     information_required = data1['Element'] == 'Yield'
     crops = list(map(sorted(list(set(data1['Item']))).__getitem__, y))
@@ -88,11 +84,11 @@ def correlation_Builder():
         serie.append(serie_n)
         indexes_to_crops[str(i)] = crop
         crops_to_indexes[crop] = i
-    for x, s1 in enumerate(serie[:-1]):    # costruisce la matrix delle correlazioni, con le etichette: si può ridurre a metà!
+    for x, s1 in enumerate(serie[:-1]):    # build correlation matrix
         for y, s2 in enumerate(serie[x+1:]):
-            # se i dati non sono correlabil il coeff. di correlazione viene lasciato a 0. Si può aggiungere una matrix che tenga conto di quali dati sono stati analizzati
+            # correlation coeff. is set to 0 when data are not suitable for analysis
             if len(s1)>lim_inf and len(s2)>lim_inf:
-                # viene calcolata l'intersezione degli anni disponibili su entrambi
+                # calculating intersection between available years on both
                 ixs = s1.index.intersection(s2.index)
                 s1_x = s1.loc[ixs]
                 s2_x = s2.loc[ixs]
@@ -101,7 +97,7 @@ def correlation_Builder():
                     matrix[x][y+x+1] = c_coef if not np.isnan(c_coef) else 0
                     n_available_years[x][y+x+1] = len(s1_x)
                 except FloatingPointError:
-                    if False:
+                    if False:   # ongoing debugging
                         print('warning encountered when correlating %s with %s' % (x, y))
                         print('serie:', serie )
                         print(s1, s2)
@@ -111,7 +107,7 @@ def correlation_Builder():
                 matrix[x][y+x+1] = 0
 
     matrix_c = np.abs(matrix)
-    # RIEMPE LA MATRICE TRIANGOLARE
+    # FILLS TRIANGULAR MATRIX
     matrix_filled = matrix.copy()
     for i in range(len(crops)):
         matrix_filled[i][i] = 1
@@ -122,15 +118,10 @@ def correlation_Builder():
 
 if __name__=='__main__':
 
-    # TODO: explain how to read the half meshed graph imagining the bouncing line
-
-    # TODO: convert names to English
     # TODO: organize crops in similarity groups
-
     # TODO: find out why we get some 'Nan' from correlation computation. (at x=7, y=41-7)
-    # TODO: check why IDE was showing issues when importing "lancia_barre" from local folder
+    # TODO: check why IDE was showing issues when importing "throw_3Dbarplot" from local folder
     # TODO: fix division by zero warning
-    # TODO: try simplifying using a pandas correlation matrix instead of step by step series
 
     lim_inf = 9   # if a time series has less than 'lim_inf' values, it is not considered.
     verbose = False
@@ -138,15 +129,15 @@ if __name__=='__main__':
     _3_graphs = False
 
     i1 = input('98 types of crop are avialable. Please select a subset of them or simply type enter to capture all: ')
-    crops_sub_set = list(range(20, 50))
+    crops_sub_set = list(range(30, 91))
     # crops_sub_set = list(range(15, 30))
     # crops_sub_set = [20, 21, 22, 69, 70, 71]
 
-    n_crops, crops, data1, information_required, n_years = load_from_European_type_file(crops_sub_set)
+    n_crops, crops, data1, information_required, n_years = load_from_single_country_FAO_file(crops_sub_set)
     matrix, matrix_c, matrix_filled, n_available_years, crops_to_indexes, indexes_to_crops = correlation_Builder()
     print(indexes_to_crops)
 
-    if _3_graphs:
+    if _3_graphs:   # for article publication purpose only
         show_2_superposed_shapes('Eggplants (aubergines)', 'Hemp tow waste', 'forestgreen', 'lime')
         show_2_superposed_shapes('Maize', 'Fruit, fresh nes', 'magenta', 'darkmagenta')
         show_2_superposed_shapes('Garlic', 'Chestnut', 'dimgray', 'silver')
@@ -154,27 +145,27 @@ if __name__=='__main__':
 
     while True:
         # <editor-fold desc="CAPTURE USER INPUT">
-        barre = pair = scatter = singola_crop = toni_a_scacchi = False
+        allBars3D = pair = scatter = single_crop = chess_tones = False
         i2 = input('What graph would you like to see (s = single, c = pair, m = mesh grid, v = variable size mesh, b = 3D bars, x = Exit) ? ')
         if i2 == 's':
-            singola_crop = True
+            single_crop = True
         elif i2 == 'c':
             pair = True
         elif i2 == 'm':
-            toni_a_scacchi = True
+            chess_tones = True
         elif i2 == 'v':
             scatter = True
         elif i2 == 'b':
-            barre = True
+            allBars3D = True
         elif i2 == 'x':
             exit(0)
         # </editor-fold>
 
-        # <editor-fold desc="GRAFICI">
-        if barre:
-            lancia_barre(matrix_c, 0.5, labels=crops, etichette=True)
+        # <editor-fold desc="GRAPHS">
+        if allBars3D:
+            throw_3Dbarplot(matrix_c, 0.5, labels=crops, my_labels=True)
 
-        if singola_crop:
+        if single_crop:
             desired_crop = input('Which crop would you like to compare with all the rest? ')
             if desired_crop in crops:
                 crop_index = crops_to_indexes[desired_crop]
@@ -186,13 +177,17 @@ if __name__=='__main__':
                 coppie = dict(sorted(associazioni.items(), key=lambda x: x[1]))
                 c_values = np.asarray(list((coppie.values())))
 
-                # data_color = [x/len(c_values) for x in np.arange(len(c_values))]
-                c_values_mapped_to_01 = c_values/2 + 0.5 # mapping [-1, +1] to [0, 1]
+                c_values_mapped_to_01 = c_values/2 + 0.5    # mapping [-1, +1] to [0, 1]
                 data_color = c_values_mapped_to_01
                 my_cmap = plt.cm.get_cmap('PiYG')
                 colors = my_cmap(data_color)
                 print(data_color, colors)
-                sp1.barh(list(coppie.keys()), c_values, color=colors)
+
+                c_abs_values = np.abs(c_values)
+                plt.grid(which='both', axis='x')
+                plt.xticks(np.arange(min(c_abs_values), max(c_abs_values) + 0.1, 0.1))
+
+                sp1.barh(list(coppie.keys()), c_abs_values, color=colors)
                 plt.show()
 
         if pair:
@@ -205,7 +200,7 @@ if __name__=='__main__':
             if (c1 in crops) and (c2 in crops):
                 show_2_superposed_shapes(c1, c2)
 
-        if toni_a_scacchi:
+        if chess_tones:
 
             plt.rcParams['xtick.bottom'] = plt.rcParams['xtick.labelbottom'] = False
             plt.rcParams['xtick.top'] = plt.rcParams['xtick.labeltop'] = True
